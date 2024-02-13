@@ -17,35 +17,31 @@ class WallManager(AbstractVirtualCapability):
         super().__init__(server)
         self.wall = []
         self.cars = []
-        self.copter_swarm = None
-        self.block_handler = None
+        self.block_handler = self.query_sync("BlockHandler")
         self.blocks = []
 
-    def tick(self, params: dict):
+    def SetupWall(self, params: dict) -> dict:
+        cnt = params["int"]
+        for i in range(cnt):
+            self.cars.append(self.query_sync("PlacerRobot"))
+        return {"DeviceList": self.cars}
+
+    def WallTick(self, params: dict):
         copter = self.invoke_sync("GetAvaiableCopter", params)["Device"]
+        stone = self.blocks.pop()
+        formatPrint(self, stone)
 
-
+        self.invoke_sync("FreeCopter", {"Device": copter})
         return params
 
-    def GetSwarm(self, params: dict):
-        return {"Device": self.copter_swarm}
-
-    def SetSwarm(self, params: dict):
-        self.copter_swarm = json.loads(params["Device"])
-        return self.GetSwarm({})
-
-    def GetBlockHandler(self, params: dict):
-        return {"Device": self.block_handler}
-
-    def SetBlockHandler(self, params: dict):
-        self.block_handler = json.loads(params["Device"])
-        return self.GetBlockHandler({})
+    def SetWall(self, params: dict):
+        self.wall = params["Vector3"]
 
     def GetBlocks(self, params: dict) -> dict:
-        return {"blocks": self.blocks}
+        return {"ParameterList": self.blocks}
 
     def SetBlocks(self, params: dict) -> dict:
-        self.blocks = params["blocks"]
+        self.blocks = params["ParameterList"]
         return self.GetBlocks({})
 
     def loop(self):
@@ -58,6 +54,7 @@ if __name__ == '__main__':
         print("[Main] Received SIGTERM signal")
         listener.kill()
         quit(1)
+
 
     try:
         port = None
