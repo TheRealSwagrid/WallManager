@@ -21,6 +21,7 @@ class WallManager(AbstractVirtualCapability):
         self.blocks = []
 
     def SetupWall(self, params: dict) -> dict:
+        self.invoke_sync("InitializeSwarm", {"int": 2})
         self.block_handler = self.query_sync("BlockHandler")
         cnt = params["int"]
         for i in range(cnt):
