@@ -17,10 +17,11 @@ class WallManager(AbstractVirtualCapability):
         super().__init__(server)
         self.wall = []
         self.cars = []
-        self.block_handler = self.query_sync("BlockHandler")
+        self.block_handler = None
         self.blocks = []
 
     def SetupWall(self, params: dict) -> dict:
+        self.block_handler = self.query_sync("BlockHandler")
         cnt = params["int"]
         for i in range(cnt):
             self.cars.append(self.query_sync("PlacerRobot"))
