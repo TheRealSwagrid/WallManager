@@ -38,6 +38,7 @@ class WallManager(AbstractVirtualCapability):
 
     def SetWall(self, params: dict):
         self.wall = params["Vector3"]
+        return {}
 
     def GetBlocks(self, params: dict) -> dict:
         return {"ParameterList": self.blocks}
