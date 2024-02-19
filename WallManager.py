@@ -24,7 +24,7 @@ class WallManager(AbstractVirtualCapability):
         self.invoke_sync("InitializeSwarm", {"int": 2})
         self.block_handler = self.query_sync("BlockHandler")
         cnt = params["int"]
-        for i in range(cnt):
+        for i in range(cnt - len(self.cars)):
             self.cars.append(self.query_sync("PlacerRobot"))
         return {"DeviceList": self.cars}
 
