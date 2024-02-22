@@ -25,7 +25,7 @@ class WallManager(AbstractVirtualCapability):
         self.block_handler = self.query_sync("BlockHandler")
         cnt = params["int"]
         for i in range(cnt - len(self.cars)):
-            self.cars.append(self.query_sync("PlacerRobot"), -1)
+            self.cars.append(self.query_sync("PlacerRobot", -1))
         return {"DeviceList": self.cars}
 
     def WallTick(self, params: dict):
