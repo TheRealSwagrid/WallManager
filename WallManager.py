@@ -50,7 +50,7 @@ class WallManager(AbstractVirtualCapability):
     def IsBlockOnWall(self, params: dict):
         if len(self.wall) > 0:
             p = np.sum(np.array(self.wall[:3]) * np.array(params["Vector3"]))
-            return {"bool": np.abs(p - self.wall[3]) < 1e-3}
+            return {"bool": float(np.abs(p - self.wall[3])) < 1e-3}
         else:
             raise ValueError("Wall has not been setup!")
 
