@@ -47,6 +47,13 @@ class WallManager(AbstractVirtualCapability):
         self.blocks = params["ParameterList"]
         return self.GetBlocks({})
 
+    def IsBlockOnWall(self, params: dict):
+        if len(self.wall) > 0:
+            p = np.sum(sum(np.array(self.wall[:3]) * np.array(params["Vector3"])))
+            return {"bool": abs(p - self.wall[3]) < 1e-3}
+        else:
+            raise ValueError("Wall has not been setup!")
+
     def loop(self):
         sleep(.0001)
 
