@@ -8,7 +8,8 @@ from copy import deepcopy
 import numpy as np
 import quaternion
 from time import sleep
-from AbstractVirtualCapability import AbstractVirtualCapability, VirtualCapabilityServer, formatPrint
+from AbstractVirtualCapability import AbstractVirtualCapability, VirtualCapabilityServer, formatPrint, \
+    SubDeviceRepresentation
 
 
 class WallManager(AbstractVirtualCapability):
@@ -29,9 +30,16 @@ class WallManager(AbstractVirtualCapability):
         return {"DeviceList": self.cars}
 
     def WallTick(self, params: dict):
-        copter = self.invoke_sync("GetAvaiableCopter", params)["Device"]
+        copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
         stone = self.blocks.pop()
         formatPrint(self, stone)
+        new_block = self.block_handler.invoke_sync("SpawnBlock", {"Vector3":stone["Vector3"]})
+
+        copter.invoke_sync("SetPosition", {"Position3D":new_block["Position3D"]})
+        copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
+        copter.invoke_sync("SetRotation", {"Quaternion": stone["Quaternion"]})
+        copter.invoke_sync("SetPosition", {"Position3D": stone["Position3D"]})
+        copter.invoke_sync("PlaceBlock", {"Position3D": stone["Position3D"]})
 
         self.invoke_sync("FreeCopter", {"Device": copter})
         return params
