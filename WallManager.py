@@ -27,6 +27,8 @@ class WallManager(AbstractVirtualCapability):
         cnt = params["int"]
         for i in range(cnt - len(self.cars)):
             self.cars.append(self.query_sync("PlacerRobot", -1))
+        self.wall = params["Vector3"]
+        starting_point = params["ListOfPoints"]
         self.__assign_placer_to_wall()
         return {"DeviceList": self.cars}
 
