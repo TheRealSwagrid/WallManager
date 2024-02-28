@@ -27,6 +27,7 @@ class WallManager(AbstractVirtualCapability):
         cnt = params["int"]
         for i in range(cnt - len(self.cars)):
             self.cars.append(self.query_sync("PlacerRobot", -1))
+        self.__assign_placer_to_wall()
         return {"DeviceList": self.cars}
 
     def WallTick(self, params: dict):
@@ -46,6 +47,7 @@ class WallManager(AbstractVirtualCapability):
 
     def SetWall(self, params: dict):
         self.wall = params["Vector3"]
+        self.__assign_placer_to_wall()
         return {}
 
     def GetBlocks(self, params: dict) -> dict:
@@ -61,6 +63,12 @@ class WallManager(AbstractVirtualCapability):
             return {"bool": float(np.abs(p - self.wall[3])) < 1e-3}
         else:
             raise ValueError("Wall has not been setup!")
+
+    def __assign_placer_to_wall(self):
+        if len(self.wall) > 0 and len(self.cars) > 0:
+            for car in self.cars:
+                car.invoke_sync("SetPosition", {"Position3D":self.wall[:3]})
+                car.invoke_sync("SetRotation", {"Quaternion":self.wall[6:10]})
 
     def loop(self):
         sleep(.0001)
