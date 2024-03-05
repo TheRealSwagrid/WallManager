@@ -4,6 +4,8 @@ import os.path
 import signal
 import sys
 from copy import deepcopy
+from threading import Thread
+from typing import List
 
 import numpy as np
 import quaternion
@@ -17,9 +19,11 @@ class WallManager(AbstractVirtualCapability):
     def __init__(self, server):
         super().__init__(server)
         self.wall = []
-        self.cars = []
+        self.cars: List[SubDeviceRepresentation] = []
         self.block_handler = None
         self.blocks = []
+        # Matches BuildPlan integer id to blockhandler integer id
+        self.fitted_blocks = {}
 
     def SetupWall(self, params: dict) -> dict:
         self.invoke_sync("InitializeSwarm", {"int": 2})
@@ -34,17 +38,24 @@ class WallManager(AbstractVirtualCapability):
 
     def WallTick(self, params: dict):
         copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
-        stone = self.blocks.pop()
-        formatPrint(self, stone)
-        new_block = self.block_handler.invoke_sync("SpawnBlock", {"Vector3":stone["Vector3"]})
 
-        copter.invoke_sync("SetPosition", {"Position3D":new_block["Position3D"]})
+        stone = self.__get_next_block()
+        blocking_thread: Thread = self.cars[0].invoke_async("SetPosition", {"Position3D": stone["Position3D"]},
+                                                            lambda x: x)
+        formatPrint(self, f"Setting new stone: {stone}")
+        new_block = self.block_handler.invoke_sync("SpawnBlock", {"Vector3": stone["Vector3"]})
+
+        # Copter takes stone
+        copter.invoke_sync("SetPosition", {"Position3D": new_block["Position3D"]})
         copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
         copter.invoke_sync("SetRotation", {"Quaternion": stone["Quaternion"]})
-        copter.invoke_sync("SetPosition", {"Position3D": stone["Position3D"]})
-        copter.invoke_sync("PlaceBlock", {"Position3D": stone["Position3D"]})
-
+        copter.invoke_sync("SetPosition", self.cars[0].invoke_sync("GetPosition", {}))
+        self.cars[0].invoke_sync("Transferblock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
+        copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": -1})
         self.invoke_sync("FreeCopter", {"Device": copter})
+        blocking_thread.join()
+        self.cars[0].invoke_sync("PlaceBlock", {"Position3D": stone["Position3D"]})
+        self.fitted_blocks[stone["int"]] = new_block["SimpleIntegerParameter"]
         return params
 
     def SetWall(self, params: dict):
@@ -69,8 +80,34 @@ class WallManager(AbstractVirtualCapability):
     def __assign_placer_to_wall(self):
         if len(self.wall) > 0 and len(self.cars) > 0:
             for car in self.cars:
-                car.invoke_sync("SetPosition", {"Position3D":self.wall[:3]})
-                car.invoke_sync("SetRotation", {"Quaternion":self.wall[6:10]})
+                car.invoke_sync("SetPosition", {"Position3D": np.array(self.wall[:3]) * self.wall[4]})
+                car.invoke_sync("SetRotation", {"Quaternion": self.wall[6:10]})
+
+    def __get_all_available_blocks(self):
+        available_blocks = []
+        for block in self.blocks:
+            key = str(block["int"])
+            if key not in self.fitted_blocks:
+                dependency_resolved = True
+                for dependency in block["depends_on"]:
+                    dependency_resolved &= str(dependency) in self.fitted_blocks
+                if not dependency_resolved:
+                    continue
+                available_blocks += [deepcopy(block)]
+        return available_blocks
+
+    def __get_next_block(self):
+        next_block = None
+        avaialable_blocks = self.__get_all_available_blocks()
+        car_pos = self.cars[0].invoke_sync("GetPosition", {})["Position3D"]
+        shortest_path_length = np.finfo(float).max
+        for block in avaialable_blocks:
+            # euclid distance car - (future)block
+            dist = np.sum(np.sqrt((np.array(car_pos) - np.array(block["Position3D"])) ** 2))
+            if dist < shortest_path_length:
+                shortest_path_length = dist
+                next_block = deepcopy(block)
+        return next_block
 
     def loop(self):
         sleep(.0001)
