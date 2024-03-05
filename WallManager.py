@@ -130,6 +130,7 @@ if __name__ == '__main__':
             ip = str(sys.argv[2])
         server = VirtualCapabilityServer(port, ip)
         listener = WallManager(server)
+        listener.uri = "WallManager"
         listener.start()
         signal.signal(signal.SIGTERM, handler)
         listener.join()
