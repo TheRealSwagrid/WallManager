@@ -40,6 +40,8 @@ class WallManager(AbstractVirtualCapability):
         copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
 
         stone = self.__get_next_block()
+        if stone is None:
+            raise ValueError(f"Stone is not available: {self.blocks} - {self.__get_all_available_blocks()}")
         blocking_thread: Thread = self.cars[0].invoke_async("SetPosition", {"Position3D": stone["Position3D"]},
                                                             lambda x: x)
         formatPrint(self, f"Setting new stone: {stone}")
