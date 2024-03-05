@@ -80,7 +80,7 @@ class WallManager(AbstractVirtualCapability):
     def __assign_placer_to_wall(self):
         if len(self.wall) > 0 and len(self.cars) > 0:
             for car in self.cars:
-                car.invoke_sync("SetPosition", {"Position3D": np.array(self.wall[:3]) * self.wall[4]})
+                car.invoke_sync("SetPosition", {"Position3D": np.array(self.wall[:3]) * self.wall[3]})
                 car.invoke_sync("SetRotation", {"Quaternion": self.wall[6:10]})
 
     def __get_all_available_blocks(self):
