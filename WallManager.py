@@ -33,7 +33,7 @@ class WallManager(AbstractVirtualCapability):
             self.cars.append(self.query_sync("PlacerRobot", -1))
         self.wall = params["Vector3"]
         starting_point = params["ListOfPoints"]
-        self.__assign_placer_to_wall()
+        self.__assign_placer_to_wall(starting_point)
         return {"DeviceList": self.cars}
 
     def WallTick(self, params: dict):
@@ -77,11 +77,11 @@ class WallManager(AbstractVirtualCapability):
         else:
             raise ValueError("Wall has not been setup!")
 
-    def __assign_placer_to_wall(self):
+    def __assign_placer_to_wall(self, starting_point):
         if len(self.wall) > 0 and len(self.cars) > 0:
             for car in self.cars:
-                car.invoke_sync("SetPosition", {"Position3D": np.array(self.wall[:3]) * self.wall[3]})
-                car.invoke_sync("SetRotation", {"Quaternion": self.wall[6:10]})
+                car.invoke_sync("SetPosition", {"Position3D": np.array(starting_point[:3])})
+                car.invoke_sync("SetRotation", {"Quaternion": starting_point[6:10]})
 
     def __get_all_available_blocks(self):
         available_blocks = []
