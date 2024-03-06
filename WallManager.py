@@ -25,6 +25,11 @@ class WallManager(AbstractVirtualCapability):
         # Matches BuildPlan integer id to blockhandler integer id
         self.fitted_blocks = {}
 
+    def SyncAlreadyFitted(self, params: dict):
+        if params["FittedBlocks"] != self.fitted_blocks:
+            self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks})
+        return {"FittedBlocks": self.fitted_blocks}
+
     def SetupWall(self, params: dict) -> dict:
         self.invoke_sync("InitializeSwarm", {"int": 2})
         self.block_handler = self.query_sync("BlockHandler")
@@ -37,11 +42,10 @@ class WallManager(AbstractVirtualCapability):
         return {"DeviceList": self.cars}
 
     def WallTick(self, params: dict):
-        copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
-
         stone = self.__get_next_block()
         if stone is None:
             raise ValueError(f"Stone is not available: {self.blocks} - {self.__get_all_available_blocks()}")
+        copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
         blocking_thread: Thread = self.cars[0].invoke_async("SetPosition", {"Position3D": stone["Position3D"]},
                                                             lambda x: x)
         formatPrint(self, f"Setting new stone: {stone}")
@@ -58,12 +62,8 @@ class WallManager(AbstractVirtualCapability):
         blocking_thread.join()
         self.cars[0].invoke_sync("PlaceBlock", {"Position3D": stone["Position3D"]})
         self.fitted_blocks[stone["int"]] = new_block["SimpleIntegerParameter"]
+        self.SyncAlreadyFitted(None)
         return params
-
-    def SetWall(self, params: dict):
-        self.wall = params["Vector3"]
-        self.__assign_placer_to_wall()
-        return {}
 
     def GetBlocks(self, params: dict) -> dict:
         return {"ParameterList": self.blocks}
