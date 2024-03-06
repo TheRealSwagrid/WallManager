@@ -26,6 +26,7 @@ class WallManager(AbstractVirtualCapability):
         self.fitted_blocks = {}
 
     def SyncAlreadyFitted(self, params: dict):
+        self.fitted_blocks += params["FittedBlocks"] if params is not None else {}
         if params["FittedBlocks"] != self.fitted_blocks:
             self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks})
         return {"FittedBlocks": self.fitted_blocks}
