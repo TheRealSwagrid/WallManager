@@ -66,7 +66,7 @@ class WallManager(AbstractVirtualCapability):
         blocking_thread.join()
         self.cars[0].invoke_sync("PlaceBlock", {"Position3D": stone["Position3D"]})
         self.fitted_blocks[stone["int"]] = new_block["SimpleIntegerParameter"]
-        self.SyncAlreadyFitted(None)
+        self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks})
         return params
 
     def GetBlocks(self, params: dict) -> dict:
