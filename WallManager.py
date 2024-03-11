@@ -51,8 +51,8 @@ class WallManager(AbstractVirtualCapability):
             print("NOSTONEFOUND")
             print(self.fitted_blocks.keys())
             print([b["int"] for b in self.blocks])
-            print(self.fitted_blocks.keys() == [b["int"] for b in self.blocks])
-            if self.fitted_blocks.keys() == [b["int"] for b in self.blocks]:
+            print([b["int"] for b in self.blocks] in self.fitted_blocks.keys())
+            if [b["int"] for b in self.blocks] in self.fitted_blocks.keys():
                 raise ValueError(f"All Stones are placed in this wallsection")
         while stone is None:
             self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks})
@@ -68,12 +68,12 @@ class WallManager(AbstractVirtualCapability):
         copter.invoke_sync("SetPosition", {"Position3D": new_block["Position3D"]})
         copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
         copter.invoke_sync("SetRotation", {"Quaternion": stone["Quaternion"]})
+        if blocking_thread.is_alive():
+            blocking_thread.join()
         copter.invoke_sync("SetPosition", self.cars[0].invoke_sync("GetPosition", {}))
         self.cars[0].invoke_sync("Transferblock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
         copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": -1})
         self.invoke_sync("FreeCopter", {"Device": copter})
-        if blocking_thread.is_alive():
-            blocking_thread.join()
         self.cars[0].invoke_sync("PlaceBlock", {"Position3D": stone["Position3D"]})
         self.fitted_blocks[stone["int"]] = new_block["SimpleIntegerParameter"]
         return params
