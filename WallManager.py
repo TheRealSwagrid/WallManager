@@ -49,6 +49,7 @@ class WallManager(AbstractVirtualCapability):
         stone = self.__get_next_block()
         while stone is None:
             self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks})
+            sleep(1)
             stone = self.__get_next_block()
             # raise ValueError(f"Stone is not available: {self.blocks} - {self.__get_all_available_blocks()}")
         copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
