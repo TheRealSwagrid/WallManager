@@ -47,11 +47,16 @@ class WallManager(AbstractVirtualCapability):
 
     def WallTick(self, params: dict):
         stone = self.__get_next_block()
+        if stone is None:
+            print("NOSTONEFOUND")
+            print(self.fitted_blocks)
+            print([b["int"] for b in self.blocks])
+            if self.fitted_blocks.keys() == [b["int"] for b in self.blocks]:
+                raise ValueError(f"All Stones are placed in this wallsection")
         while stone is None:
             self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks})
             sleep(1)
             stone = self.__get_next_block()
-            # raise ValueError(f"Stone is not available: {self.blocks} - {self.__get_all_available_blocks()}")
         copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
         blocking_thread: Thread = self.cars[0].invoke_async("SetPosition", {"Position3D": stone["Position3D"]},
                                                             lambda x: x)
@@ -108,6 +113,8 @@ class WallManager(AbstractVirtualCapability):
     def __get_next_block(self):
         next_block = None
         avaialable_blocks = self.__get_all_available_blocks()
+        if len(avaialable_blocks) <= 0:
+            return next_block
         car_pos = self.cars[0].invoke_sync("GetPosition", {})["Position3D"]
         shortest_path_length = np.finfo(float).max
         for block in avaialable_blocks:
