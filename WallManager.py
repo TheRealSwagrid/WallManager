@@ -35,7 +35,7 @@ class WallManager(AbstractVirtualCapability):
         return {"FittedBlocks": self.fitted_blocks}
 
     def SetupWall(self, params: dict) -> dict:
-        self.invoke_sync("InitializeSwarm", {"int": 3})
+        self.invoke_sync("InitializeSwarm", {"int": 4})
         self.block_handler = self.query_sync("BlockHandler")
         cnt = params["int"]
         for i in range(cnt - len(self.cars)):
