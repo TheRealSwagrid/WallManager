@@ -66,7 +66,8 @@ class WallManager(AbstractVirtualCapability):
         self.cars[0].invoke_sync("Transferblock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
         copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": -1})
         self.invoke_sync("FreeCopter", {"Device": copter})
-        blocking_thread.join()
+        if blocking_thread.is_alive():
+            blocking_thread.join()
         self.cars[0].invoke_sync("PlaceBlock", {"Position3D": stone["Position3D"]})
         self.fitted_blocks[stone["int"]] = new_block["SimpleIntegerParameter"]
         return params
