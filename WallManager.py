@@ -50,9 +50,9 @@ class WallManager(AbstractVirtualCapability):
         if stone is None:
             print("NOSTONEFOUND")
             print(self.fitted_blocks.keys())
-            print([b["int"] for b in self.blocks])
-            print([b["int"] for b in self.blocks] in self.fitted_blocks.keys())
-            if [b["int"] for b in self.blocks] in self.fitted_blocks.keys():
+            print(set([b["int"] for b in self.blocks]))
+            print(set([b["int"] for b in self.blocks]) <= self.fitted_blocks.keys())
+            if set([b["int"] for b in self.blocks]) <= self.fitted_blocks.keys():
                 raise ValueError(f"All Stones are placed in this wallsection")
         while stone is None:
             self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks})
