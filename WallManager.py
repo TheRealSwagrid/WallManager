@@ -47,8 +47,10 @@ class WallManager(AbstractVirtualCapability):
 
     def WallTick(self, params: dict):
         stone = self.__get_next_block()
-        if stone is None:
-            raise ValueError(f"Stone is not available: {self.blocks} - {self.__get_all_available_blocks()}")
+        while stone is None:
+            self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks})
+            stone = self.__get_next_block()
+            # raise ValueError(f"Stone is not available: {self.blocks} - {self.__get_all_available_blocks()}")
         copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
         blocking_thread: Thread = self.cars[0].invoke_async("SetPosition", {"Position3D": stone["Position3D"]},
                                                             lambda x: x)
@@ -66,7 +68,6 @@ class WallManager(AbstractVirtualCapability):
         blocking_thread.join()
         self.cars[0].invoke_sync("PlaceBlock", {"Position3D": stone["Position3D"]})
         self.fitted_blocks[stone["int"]] = new_block["SimpleIntegerParameter"]
-        self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks})
         return params
 
     def GetBlocks(self, params: dict) -> dict:
