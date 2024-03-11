@@ -49,8 +49,9 @@ class WallManager(AbstractVirtualCapability):
         stone = self.__get_next_block()
         if stone is None:
             print("NOSTONEFOUND")
-            print(self.fitted_blocks)
+            print(self.fitted_blocks.keys())
             print([b["int"] for b in self.blocks])
+            print(self.fitted_blocks.keys() == [b["int"] for b in self.blocks])
             if self.fitted_blocks.keys() == [b["int"] for b in self.blocks]:
                 raise ValueError(f"All Stones are placed in this wallsection")
         while stone is None:
