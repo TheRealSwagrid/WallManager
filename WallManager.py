@@ -136,9 +136,9 @@ class WallManager(AbstractVirtualCapability):
                 battery_lvl = car.invoke_sync("GetBatteryChargeLevel", {})["BatteryChargeLevel"]
                 if battery_lvl < 15.:
                     formatPrint(self, f"Loading Car: {car.ood_id}")
-                    with self.car_lock:
-                        car.invoke_sync("SetPosition", self.charging_station.invoke_sync("GetPosition", {}))
-                        car.invoke_sync("SetBatteryChargeLevel", {"BatteryChargeLevel": 100.0})
+                    self.car_lock.acquire()
+                    car.invoke_sync("SetPosition", self.charging_station.invoke_sync("GetPosition", {}))
+                    self.charging_station.invoke_async("ChargeDevice", {"Device": car}, lambda: self.car_lock.release())
         sleep(15)
 
 
