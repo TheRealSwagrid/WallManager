@@ -61,6 +61,8 @@ class WallManager(AbstractVirtualCapability):
             self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks})
             sleep(1)
             stone = self.__get_next_block()
+            while self.car_lock.locked():
+                sleep(1)
         with self.car_lock:
             copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
             blocking_thread: Thread = self.cars[0].invoke_async("SetPosition", {"Position3D": stone["Position3D"]},
