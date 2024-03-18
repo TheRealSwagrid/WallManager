@@ -4,7 +4,7 @@ import os.path
 import signal
 import sys
 from copy import deepcopy
-from threading import Thread
+from threading import Thread, Lock
 from typing import List
 
 import numpy as np
@@ -20,6 +20,8 @@ class WallManager(AbstractVirtualCapability):
         super().__init__(server)
         self.wall = []
         self.cars: List[SubDeviceRepresentation] = []
+        self.charging_station = None
+        self.car_lock = Lock()
         self.block_handler = None
         self.blocks = []
         # Matches BuildPlan integer id to blockhandler integer id
@@ -36,6 +38,7 @@ class WallManager(AbstractVirtualCapability):
 
     def SetupWall(self, params: dict) -> dict:
         self.invoke_sync("InitializeSwarm", {"int": 2})
+        self.charging_station = self.query_sync("ChargingStation", 0)
         self.block_handler = self.query_sync("BlockHandler")
         cnt = params["int"]
         for i in range(cnt - len(self.cars)):
@@ -58,25 +61,26 @@ class WallManager(AbstractVirtualCapability):
             self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks})
             sleep(1)
             stone = self.__get_next_block()
-        copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
-        blocking_thread: Thread = self.cars[0].invoke_async("SetPosition", {"Position3D": stone["Position3D"]},
-                                                            lambda x: x)
-        formatPrint(self, f"Setting new stone: {stone}")
-        new_block = self.block_handler.invoke_sync("SpawnBlock", {"Vector3": stone["Vector3"]})
+        with self.car_lock:
+            copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
+            blocking_thread: Thread = self.cars[0].invoke_async("SetPosition", {"Position3D": stone["Position3D"]},
+                                                                lambda x: x)
+            formatPrint(self, f"Setting new stone: {stone}")
+            new_block = self.block_handler.invoke_sync("SpawnBlock", {"Vector3": stone["Vector3"]})
 
-        # Copter takes stone
-        copter.invoke_sync("SetPosition", {"Position3D": new_block["Position3D"]})
-        copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
-        copter.invoke_sync("SetRotation", {"Quaternion": stone["Quaternion"]})
-        if blocking_thread.is_alive():
-            blocking_thread.join()
-        copter.invoke_sync("SetPosition", self.cars[0].invoke_sync("GetPosition", {}))
-        self.cars[0].invoke_sync("Transferblock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
-        copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": -1})
-        self.invoke_sync("FreeCopter", {"Device": copter})
-        self.cars[0].invoke_sync("PlaceBlock", {"Position3D": stone["Position3D"]})
-        self.fitted_blocks[stone["int"]] = new_block["SimpleIntegerParameter"]
-        return params
+            # Copter takes stone
+            copter.invoke_sync("SetPosition", {"Position3D": new_block["Position3D"]})
+            copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
+            copter.invoke_sync("SetRotation", {"Quaternion": stone["Quaternion"]})
+            if blocking_thread.is_alive():
+                blocking_thread.join()
+            copter.invoke_sync("SetPosition", self.cars[0].invoke_sync("GetPosition", {}))
+            self.cars[0].invoke_sync("Transferblock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
+            copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": -1})
+            self.invoke_sync("FreeCopter", {"Device": copter})
+            self.cars[0].invoke_sync("PlaceBlock", {"Position3D": stone["Position3D"]})
+            self.fitted_blocks[stone["int"]] = new_block["SimpleIntegerParameter"]
+            return params
 
     def GetBlocks(self, params: dict) -> dict:
         return {"ParameterList": self.blocks}
@@ -127,7 +131,17 @@ class WallManager(AbstractVirtualCapability):
         return next_block
 
     def loop(self):
-        sleep(.0001)
+        if len(self.cars) > 0:
+            for i, car in enumerate(self.cars):
+                battery_lvl = car.invoke_sync("GetBatteryChargeLevel", {})["BatteryChargeLevel"]
+                if battery_lvl < 15.:
+                    formatPrint(self, f"Loading Car: {car.ood_id}")
+                    with self.car_lock:
+                        car.invoke_sync("SetPosition", self.charging_station.invoke_sync("GetPosition", {}))
+                        car.invoke_async("SetBatteryChargeLevel", {"BatteryChargeLevel": 100.0},
+                                         lambda *args: None)
+
+        sleep(30)
 
 
 if __name__ == '__main__':
