@@ -140,7 +140,7 @@ class WallManager(AbstractVirtualCapability):
                     formatPrint(self, f"Loading Car: {car.ood_id}")
                     self.car_lock.acquire()
                     car.invoke_sync("SetPosition", self.charging_station.invoke_sync("GetPosition", {}))
-                    self.charging_station.invoke_async("ChargeDevice", {"Device": car}, lambda: self.car_lock.release())
+                    self.charging_station.invoke_async("ChargeDevice", {"Device": car}, lambda *args: self.car_lock.release())
         sleep(15)
 
 
