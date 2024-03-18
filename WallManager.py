@@ -138,10 +138,8 @@ class WallManager(AbstractVirtualCapability):
                     formatPrint(self, f"Loading Car: {car.ood_id}")
                     with self.car_lock:
                         car.invoke_sync("SetPosition", self.charging_station.invoke_sync("GetPosition", {}))
-                        car.invoke_async("SetBatteryChargeLevel", {"BatteryChargeLevel": 100.0},
-                                         lambda *args: None)
-
-        sleep(30)
+                        car.invoke_sync("SetBatteryChargeLevel", {"BatteryChargeLevel": 100.0})
+        sleep(15)
 
 
 if __name__ == '__main__':
