@@ -63,17 +63,13 @@ class WallManager(AbstractVirtualCapability):
         with self.car_lock:
             copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
             blocking_thread: Thread = self.cars[0].invoke_async("SetPosition", {"Position3D": stone["Position3D"]},
-                                                                lambda x: x)
+                                                                lambda *args: None)
             formatPrint(self, f"Setting new stone: {stone}")
             new_block = self.block_handler.invoke_sync("SpawnBlock", {"Vector3": stone["Vector3"]})
 
             # Copter takes stone
             copter.invoke_sync("SetPosition", {"Position3D": new_block["Position3D"]})
-            try:
-                copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
-            except CapabilityErrorException as e:
-                copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": -1})
-                copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
+            copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
             copter.invoke_sync("SetRotation", {"Quaternion": stone["Quaternion"]})
 
             if blocking_thread.is_alive():
