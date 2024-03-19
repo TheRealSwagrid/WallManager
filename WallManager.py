@@ -51,10 +51,6 @@ class WallManager(AbstractVirtualCapability):
     def WallTick(self, params: dict):
         stone = self.__get_next_block()
         if stone is None:
-            print("NOSTONEFOUND")
-            print(self.fitted_blocks.keys())
-            print(set([b["int"] for b in self.blocks]))
-            print(set([b["int"] for b in self.blocks]) <= self.fitted_blocks.keys())
             if set([b["int"] for b in self.blocks]) <= self.fitted_blocks.keys():
                 raise ValueError(f"All Stones are placed in this wallsection")
         while stone is None:
@@ -62,6 +58,7 @@ class WallManager(AbstractVirtualCapability):
             sleep(1)
             stone = self.__get_next_block()
             while self.car_lock.locked():
+                # Dont need to query blocks while car is unable to move
                 sleep(1)
         with self.car_lock:
             copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
