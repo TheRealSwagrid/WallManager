@@ -11,7 +11,7 @@ import numpy as np
 import quaternion
 from time import sleep
 from AbstractVirtualCapability import AbstractVirtualCapability, VirtualCapabilityServer, formatPrint, \
-    SubDeviceRepresentation
+    SubDeviceRepresentation, CapabilityErrorException
 
 
 class WallManager(AbstractVirtualCapability):
@@ -69,8 +69,13 @@ class WallManager(AbstractVirtualCapability):
 
             # Copter takes stone
             copter.invoke_sync("SetPosition", {"Position3D": new_block["Position3D"]})
-            copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
+            try:
+                copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
+            except CapabilityErrorException as e:
+                copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": -1})
+                copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
             copter.invoke_sync("SetRotation", {"Quaternion": stone["Quaternion"]})
+
             if blocking_thread.is_alive():
                 blocking_thread.join()
             copter.invoke_sync("SetPosition", self.cars[0].invoke_sync("GetPosition", {}))
@@ -138,7 +143,7 @@ class WallManager(AbstractVirtualCapability):
                     self.car_lock.acquire()
                     car.invoke_sync("SetPosition", self.charging_station.invoke_sync("GetPosition", {}))
                     self.charging_station.invoke_async("ChargeDevice", {"Device": car}, lambda *args: self.car_lock.release())
-        sleep(15)
+        sleep(5)
 
 
 if __name__ == '__main__':
