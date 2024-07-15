@@ -135,8 +135,11 @@ class WallManager(AbstractVirtualCapability):
     def loop(self):
         if len(self.cars) > 0:
             for i, car in enumerate(self.cars):
+                formatPrint(self, "LOOPING 1")
                 battery_lvl = car.invoke_sync("GetBatteryChargeLevel", {})["BatteryChargeLevel"]
+                formatPrint(self, "LOOPING 2")
                 if battery_lvl < 25.:
+                    formatPrint(self, "LOOPING 3")
                     formatPrint(self, f"Loading Car: {car.ood_id}")
                     self.car_lock.acquire()
                     car.invoke_sync("SetPosition", self.charging_station.invoke_sync("GetPosition", {}))
