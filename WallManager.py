@@ -75,6 +75,7 @@ class WallManager(AbstractVirtualCapability):
             if blocking_thread.is_alive():
                 blocking_thread.join()
             copter.invoke_sync("SetPosition", self.cars[0].invoke_sync("GetPosition", {}))
+        with self.car_lock:
             self.cars[0].invoke_sync("Transferblock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
             copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": -1})
             self.invoke_sync("FreeCopter", {"Device": copter})
