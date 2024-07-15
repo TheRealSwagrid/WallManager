@@ -65,15 +65,14 @@ class WallManager(AbstractVirtualCapability):
             blocking_thread: Thread = self.cars[0].invoke_async("SetPosition", {"Position3D": stone["Position3D"]},
                                                                 lambda *args: None)
             formatPrint(self, f"Setting new stone: {stone}")
-        new_block = self.block_handler.invoke_sync("SpawnBlock", {"Vector3": stone["Vector3"]})
+            new_block = self.block_handler.invoke_sync("SpawnBlock", {"Vector3": stone["Vector3"]})
 
-            # Copter takes stone
-        copter.invoke_sync("SetPosition", {"Position3D": new_block["Position3D"]})
-        copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
-        copter.invoke_sync("SetRotation", {"Quaternion": stone["Quaternion"]})
-
-        if blocking_thread.is_alive():
-            blocking_thread.join()
+                # Copter takes stone
+            copter.invoke_sync("SetPosition", {"Position3D": new_block["Position3D"]})
+            copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
+            copter.invoke_sync("SetRotation", {"Quaternion": stone["Quaternion"]})
+            if blocking_thread.is_alive():
+                blocking_thread.join()
 
         copter.invoke_sync("SetPosition", self.cars[0].invoke_sync("GetPosition", {}))
         with self.car_lock:
