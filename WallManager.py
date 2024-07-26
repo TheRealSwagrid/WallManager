@@ -21,32 +21,56 @@ class WallManager(AbstractVirtualCapability):
         self.wall = []
         self.cars: List[SubDeviceRepresentation] = []
         self.charging_station = None
-        self.car_lock = Lock()
+        self.car_lock: List[Lock] = []
         self.block_handler = None
         self.blocks = []
         # Matches BuildPlan integer id to blockhandler integer id
         self.fitted_blocks = {}
+        self.f = f"/home/z/Desktop/Trash/{self.server.connectionPort}.log"
+        self.id = -1
 
     def SyncAlreadyFitted(self, params: dict):
         #  This comes from another WallManager
         if params is not None:
             self.fitted_blocks.update(params["FittedBlocks"])
-            if params["FittedBlocks"] != self.fitted_blocks:
+            if params["int"] != self.id:
+                with open(self.f, mode='a') as logger:
+                    logger.write(f"in@" + str(params["int"]) + "  -  " + str(dict(params["FittedBlocks"]).values()))
+                    logger.write(f"\n{self.fitted_blocks.values()}\n")
+            if params["FittedBlocks"] != self.fitted_blocks and len(params["FittedBlocks"]) < len(self.fitted_blocks):
                 # Syncing further
-                self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks})
+                with open(self.f, mode='a') as logger:
+                    logger.write("-------------------------------------------------------------------------\n")
+                    logger.write(f"START{self.id}: {self.fitted_blocks.values()}\n")
+                self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks, "int": self.id})
+
         return {"FittedBlocks": self.fitted_blocks}
 
     def SetupWall(self, params: dict) -> dict:
-        self.invoke_sync("InitializeSwarm", {"int": 1})
+        self.invoke_sync("InitializeSwarm", {"int": 3})
         self.charging_station = self.query_sync("ChargingStation", 0)
         self.block_handler = self.query_sync("BlockHandler")
-        cnt = params["int"]
+        cnt = 1 # params["int"]
+        self.id = params["int"]
+        self.f = f"/home/z/Desktop/Trash/{self.id}.log"
         for i in range(cnt - len(self.cars)):
             self.cars.append(self.query_sync("PlacerRobot", -1))
+            self.car_lock.append(Lock())
         self.wall = params["Vector3"]
         starting_point = params["ListOfPoints"]
         self.__assign_placer_to_wall(starting_point)
         return {"DeviceList": self.cars}
+
+    def acquire_stone(self, copter, new_stone):
+        # Copter takes stone
+        stone_id = copter.invoke_sync("GetBlock", {})["SimpleIntegerParameter"]
+        if stone_id == -1:
+            new_block = self.block_handler.invoke_sync("SpawnBlock", {"Vector3": new_stone["Vector3"]})
+            copter.invoke_sync("SetPosition", {"Position3D": new_block["Position3D"]})
+            copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
+            stone_id = new_block["SimpleIntegerParameter"]
+        copter.invoke_sync("SetRotation", {"Quaternion": new_stone["Quaternion"]})
+        return stone_id
 
     def WallTick(self, params: dict):
         stone = self.__get_next_block()
@@ -54,33 +78,36 @@ class WallManager(AbstractVirtualCapability):
             if set([b["int"] for b in self.blocks]) <= self.fitted_blocks.keys():
                 raise ValueError(f"All Stones are placed in this wallsection")
         while stone is None:
-            self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks})
-            sleep(1)
+            with open(self.f, mode='a') as logger:
+                logger.write("-------------------------------------------------------------------------\n")
+                logger.write(f"START{self.id}: {self.fitted_blocks.values()}\n")
+            self.invoke_sync("SyncAlreadyFitted", {"FittedBlocks": self.fitted_blocks, "int": self.id})
+            #raise ValueError(f"I finished {self.fitted_blocks}")
+            sleep(.5)
             stone = self.__get_next_block()
-            while self.car_lock.locked():
+            while self.car_lock[0].locked():
                 # Dont need to query blocks while car is unable to move
                 sleep(1)
-        with self.car_lock:
+        formatPrint(self, f"Setting new stone: {stone}")
+
+        copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
+        new_block = self.acquire_stone(copter, stone)
+
+        if self.car_lock[0].locked():
+            self.invoke_sync("FreeCopter", {"Device": copter})
+            while self.car_lock[0].locked():
+                sleep(.001)
             copter = SubDeviceRepresentation(self.invoke_sync("GetAvaiableCopter", params)["Device"], self, None)
-            blocking_thread: Thread = self.cars[0].invoke_async("SetPosition", {"Position3D": stone["Position3D"]},
-                                                                lambda *args: None)
-            formatPrint(self, f"Setting new stone: {stone}")
-            new_block = self.block_handler.invoke_sync("SpawnBlock", {"Vector3": stone["Vector3"]})
+            new_block = self.acquire_stone(copter, stone)
 
-                # Copter takes stone
-            copter.invoke_sync("SetPosition", {"Position3D": new_block["Position3D"]})
-            copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
-            copter.invoke_sync("SetRotation", {"Quaternion": stone["Quaternion"]})
-            if blocking_thread.is_alive():
-                blocking_thread.join()
-
-        copter.invoke_sync("SetPosition", self.cars[0].invoke_sync("GetPosition", {}))
-        with self.car_lock:
-            self.cars[0].invoke_sync("Transferblock", {"SimpleIntegerParameter": new_block["SimpleIntegerParameter"]})
+        with self.car_lock[0]:
+            pos = self.cars[0].invoke_sync("SetPosition", {"Position3D": stone["Position3D"]})
+            copter.invoke_sync("SetPosition", pos)
+            self.cars[0].invoke_sync("Transferblock", {"SimpleIntegerParameter": new_block})
             copter.invoke_sync("TransferBlock", {"SimpleIntegerParameter": -1})
             self.invoke_sync("FreeCopter", {"Device": copter})
             self.cars[0].invoke_sync("PlaceBlock", {"Position3D": stone["Position3D"]})
-            self.fitted_blocks[stone["int"]] = new_block["SimpleIntegerParameter"]
+            self.fitted_blocks[stone["int"]] = new_block
             return params
 
     def GetBlocks(self, params: dict) -> dict:
@@ -88,6 +115,8 @@ class WallManager(AbstractVirtualCapability):
 
     def SetBlocks(self, params: dict) -> dict:
         self.blocks = params["ParameterList"]
+        id_list = [b["int"] for b in self.blocks]
+        formatPrint(self, f"MYBLOKS size={len(id_list)}: " + str(id_list))
         return self.GetBlocks({})
 
     def IsBlockOnWall(self, params: dict):
@@ -135,11 +164,11 @@ class WallManager(AbstractVirtualCapability):
         if len(self.cars) > 0:
             for i, car in enumerate(self.cars):
                 battery_lvl = car.invoke_sync("GetBatteryChargeLevel", {})["BatteryChargeLevel"]
-                if battery_lvl < 25.:
+                if battery_lvl < 15.:
                     formatPrint(self, f"Loading Car: {car.ood_id}")
-                    self.car_lock.acquire()
+                    self.car_lock[0].acquire()
                     car.invoke_sync("SetPosition", self.charging_station.invoke_sync("GetPosition", {}))
-                    self.charging_station.invoke_async("ChargeDevice", {"Device": car}, lambda *args: self.car_lock.release())
+                    self.charging_station.invoke_async("ChargeDevice", {"Device": car}, lambda *args: self.car_lock[0].release())
         sleep(10)
 
 if __name__ == '__main__':
